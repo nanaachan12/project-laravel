@@ -1,10 +1,54 @@
 @extends('layouts.app')
 
-@section('title', 'Daftar Barang - StockGudang')
+@section('title', 'Daftar Barang & Mutasi Stok - StockGudang')
 
 @section('content')
 <div x-data="{
-    openCreateModal: {{ ($errors->has('kode') || $errors->has('nama') || $errors->has('satuan') || $errors->has('stock')) ? 'true' : 'false' }},
+    openCreateModal: {{ ($errors->has('kode') || $errors->has('nama') || $errors->has('satuan')) ? 'true' : 'false' }},
+    openMovementModal: {{ $errors->has('jumlah') ? 'true' : 'false' }},
+    openHistoryModal: false,
+    
+    // State untuk form mutasi (Fitur 2)
+    selectedItem: {
+        id: '{{ old('item_id') }}',
+        kode: '',
+        nama: '',
+        satuan: '',
+        stock: 0
+    },
+    movementJenis: '{{ old('jenis', 'masuk') }}',
+    jumlahInput: {{ old('jumlah', 1) }},
+    
+    // History state (Fitur 5)
+    historyItem: null,
+    historyData: [],
+    historyLoading: false,
+
+    // Buka modal mutasi (Fitur 2)
+    openMovement(item, jenis) {
+        this.selectedItem = item;
+        this.movementJenis = jenis;
+        this.jumlahInput = 1;
+        this.openMovementModal = true;
+    },
+
+    // Buka modal riwayat mutasi via fetch API (Fitur 5)
+    async openHistory(item) {
+        this.historyItem = item;
+        this.historyLoading = true;
+        this.openHistoryModal = true;
+        try {
+            const res = await fetch(`/items/${item.id}/movements-api`);
+            const data = await res.json();
+            this.historyData = data.movements;
+        } catch (e) {
+            console.error('Gagal memuat riwayat:', e);
+            this.historyData = [];
+        } finally {
+            this.historyLoading = false;
+        }
+    },
+
     satuanPreset(val) {
         document.getElementById('satuan_input').value = val;
     }
@@ -13,8 +57,8 @@
     <!-- Header & Action -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
-            <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Daftar Barang Gudang</h2>
-            <p class="text-sm text-slate-500 mt-1">Kelola data barang inventaris dan pantau jumlah stok terkini.</p>
+            <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Daftar Barang Gudang &amp; Mutasi Stok</h2>
+            <p class="text-sm text-slate-500 mt-1">Kelola data inventaris, pencatatan mutasi barang masuk &amp; keluar, serta riwayat stok.</p>
         </div>
         <div class="flex items-center gap-3">
             <button 
@@ -102,7 +146,8 @@
                         <th class="py-3.5 px-4 sm:px-6">Satuan</th>
                         <th class="py-3.5 px-4 sm:px-6 text-center">Jumlah Stok</th>
                         <th class="py-3.5 px-4 sm:px-6 text-center">Mutasi</th>
-                        <th class="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
+                        <th class="py-3.5 px-4 sm:px-6 text-center">Catat Mutasi (Fitur 2)</th>
+                        <th class="py-3.5 px-4 sm:px-6 text-right">Riwayat</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 text-sm">
@@ -114,7 +159,9 @@
                                 </span>
                             </td>
                             <td class="py-4 px-4 sm:px-6 font-medium text-slate-900">
-                                {{ $item->nama }}
+                                <a href="{{ route('items.show', $item) }}" class="hover:text-indigo-600 transition">
+                                    {{ $item->nama }}
+                                </a>
                             </td>
                             <td class="py-4 px-4 sm:px-6 text-slate-600">
                                 <span class="capitalize">{{ $item->satuan }}</span>
@@ -137,15 +184,54 @@
                             <td class="py-4 px-4 sm:px-6 text-center text-xs text-slate-500">
                                 {{ $item->movements_count ?? 0 }} kali
                             </td>
-                            <td class="py-4 px-4 sm:px-6 text-right">
+
+                            <!-- Aksi Catat Mutasi Masuk/Keluar (Fitur 2 Modal Trigger) -->
+                            <td class="py-4 px-4 sm:px-6 text-center">
                                 <div class="inline-flex items-center gap-1.5">
-                                    <span class="text-xs text-slate-400 italic">Siap mutasi</span>
+                                    <!-- Tombol Masuk -->
+                                    <button 
+                                        type="button"
+                                        @click="openMovement({{ json_encode(['id' => $item->id, 'kode' => $item->kode, 'nama' => $item->nama, 'satuan' => $item->satuan, 'stock' => $item->stock]) }}, 'masuk')"
+                                        title="Catat Barang Masuk"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                        <span>Masuk</span>
+                                    </button>
+
+                                    <!-- Tombol Keluar -->
+                                    <button 
+                                        type="button"
+                                        @click="openMovement({{ json_encode(['id' => $item->id, 'kode' => $item->kode, 'nama' => $item->nama, 'satuan' => $item->satuan, 'stock' => $item->stock]) }}, 'keluar')"
+                                        title="Catat Barang Keluar"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/></svg>
+                                        <span>Keluar</span>
+                                    </button>
+                                </div>
+                            </td>
+
+                            <!-- Riwayat Mutasi (Fitur 5) -->
+                            <td class="py-4 px-4 sm:px-6 text-right">
+                                <div class="inline-flex items-center gap-2">
+                                    <button 
+                                        type="button"
+                                        @click="openHistory({{ json_encode(['id' => $item->id, 'kode' => $item->kode, 'nama' => $item->nama, 'satuan' => $item->satuan, 'stock' => $item->stock]) }})"
+                                        class="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1 hover:underline">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        Riwayat
+                                    </button>
+                                    <a 
+                                        href="{{ route('items.show', $item) }}" 
+                                        title="Buka Halaman Detail" 
+                                        class="text-slate-400 hover:text-slate-600">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-12 px-4 text-center">
+                            <td colspan="7" class="py-12 px-4 text-center">
                                 <div class="max-w-sm mx-auto">
                                     <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,7 +269,9 @@
         @endif
     </div>
 
-    <!-- Modal Form Tambah Barang (Alpine.js) -->
+    <!-- ============================================================== -->
+    <!-- MODAL 1: FORM TAMBAH BARANG (Fitur 1 - Alpine.js)                -->
+    <!-- ============================================================== -->
     <div 
         x-cloak 
         x-show="openCreateModal" 
@@ -213,31 +301,23 @@
                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                 class="relative bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-100">
 
-                <!-- Modal Header -->
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         </div>
                         <div>
                             <h3 class="text-lg font-bold text-slate-900" id="modal-title">Tambah Barang Baru</h3>
-                            <p class="text-xs text-slate-500">Lengkapi informasi barang untuk inventaris gudang.</p>
+                            <p class="text-xs text-slate-500">Lengkapi kode unik, nama, dan satuan barang.</p>
                         </div>
                     </div>
                     <button @click="openCreateModal = false" class="text-slate-400 hover:text-slate-600 transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
 
-                <!-- Modal Form -->
                 <form action="{{ route('items.store') }}" method="POST" class="mt-5 space-y-4">
                     @csrf
-
-                    <!-- Kode Barang (Wajib & Unik) -->
                     <div>
                         <label for="kode" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                             Kode Barang <span class="text-rose-500">*</span>
@@ -247,19 +327,11 @@
                             name="kode" 
                             id="kode"
                             value="{{ old('kode') }}"
-                            placeholder="Contoh: BRG-001, ELK-102" 
+                            placeholder="Contoh: BRG-001" 
                             required
-                            class="w-full px-3.5 py-2.5 rounded-xl border @error('kode') border-rose-400 bg-rose-50/30 @else border-slate-200 bg-slate-50/50 @enderror text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase font-mono">
-                        @error('kode')
-                            <p class="text-rose-600 text-xs mt-1.5 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                        <p class="text-[11px] text-slate-400 mt-1">Kode bersifat unik untuk setiap barang.</p>
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase font-mono">
                     </div>
 
-                    <!-- Nama Barang (Wajib) -->
                     <div>
                         <label for="nama" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                             Nama Barang <span class="text-rose-500">*</span>
@@ -269,18 +341,11 @@
                             name="nama" 
                             id="nama"
                             value="{{ old('nama') }}"
-                            placeholder="Contoh: Kertas HVS A4 80gr" 
+                            placeholder="Contoh: Mouse Wireless Logitech" 
                             required
-                            class="w-full px-3.5 py-2.5 rounded-xl border @error('nama') border-rose-400 bg-rose-50/30 @else border-slate-200 bg-slate-50/50 @enderror text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                        @error('nama')
-                            <p class="text-rose-600 text-xs mt-1.5 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
                     </div>
 
-                    <!-- Satuan Barang (Wajib) -->
                     <div>
                         <label for="satuan_input" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                             Satuan Barang <span class="text-rose-500">*</span>
@@ -290,11 +355,9 @@
                             name="satuan" 
                             id="satuan_input"
                             value="{{ old('satuan') }}"
-                            placeholder="Contoh: pcs, box, kg, rim, unit" 
+                            placeholder="Contoh: pcs, box, unit, kg" 
                             required
-                            class="w-full px-3.5 py-2.5 rounded-xl border @error('satuan') border-rose-400 bg-rose-50/30 @else border-slate-200 bg-slate-50/50 @enderror text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                        
-                        <!-- Quick Presets -->
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
                         <div class="flex items-center gap-1.5 mt-2 flex-wrap">
                             <span class="text-[11px] text-slate-400 mr-1">Preset cepat:</span>
                             @foreach(['pcs', 'box', 'rim', 'kg', 'unit', 'lusin'] as $preset)
@@ -306,16 +369,8 @@
                                 </button>
                             @endforeach
                         </div>
-
-                        @error('satuan')
-                            <p class="text-rose-600 text-xs mt-1.5 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
                     </div>
 
-                    <!-- Stok Awal (Opsional, Default 0) -->
                     <div>
                         <label for="stock" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                             Stok Awal (Opsional)
@@ -327,34 +382,323 @@
                             value="{{ old('stock', 0) }}"
                             min="0"
                             placeholder="0" 
-                            class="w-full px-3.5 py-2.5 rounded-xl border @error('stock') border-rose-400 bg-rose-50/30 @else border-slate-200 bg-slate-50/50 @enderror text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                        @error('stock')
-                            <p class="text-rose-600 text-xs mt-1.5 flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                        <p class="text-[11px] text-slate-400 mt-1">Default 0. Mutasi barang dapat ditambahkan setelah barang tersimpan.</p>
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
                     </div>
 
-                    <!-- Form Buttons -->
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                        <button type="button" @click="openCreateModal = false" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition">Simpan Barang</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 2: FORM MUTASI MASUK & KELUAR (Fitur 2 & 4 - Alpine.js)    -->
+    <!-- ============================================================== -->
+    <div 
+        x-cloak 
+        x-show="openMovementModal" 
+        class="fixed inset-0 z-50 overflow-y-auto"
+        aria-labelledby="modal-movement-title" role="dialog" aria-modal="true">
+        
+        <!-- Backdrop -->
+        <div 
+            x-show="openMovementModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="openMovementModal = false"
+            class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div 
+                x-show="openMovementModal"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="relative bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-100">
+
+                <!-- Header Modal Mutasi -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div 
+                            :class="movementJenis === 'masuk' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'"
+                            class="w-10 h-10 rounded-xl flex items-center justify-center font-bold">
+                            <template x-if="movementJenis === 'masuk'">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                            </template>
+                            <template x-if="movementJenis === 'keluar'">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/></svg>
+                            </template>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-bold text-slate-900" id="modal-movement-title">
+                                    Catat <span x-text="movementJenis === 'masuk' ? 'Barang Masuk' : 'Barang Keluar'"></span>
+                                </h3>
+                                <span 
+                                    :class="movementJenis === 'masuk' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
+                                    class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full"
+                                    x-text="movementJenis === 'masuk' ? '+ MASUK' : '- KELUAR'">
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                <span class="font-semibold text-slate-700" x-text="selectedItem.nama"></span>
+                                (<span class="font-mono" x-text="selectedItem.kode"></span>)
+                            </p>
+                        </div>
+                    </div>
+                    <button @click="openMovementModal = false" class="text-slate-400 hover:text-slate-600 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Info Box Stok Saat Ini -->
+                <div class="mt-4 p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-slate-500">Stok Saat Ini:</span>
+                        <p class="text-base font-bold text-slate-800">
+                            <span x-text="selectedItem.stock"></span> <span x-text="selectedItem.satuan"></span>
+                        </p>
+                    </div>
+                    <!-- Switcher jenis mutasi langsung di modal -->
+                    <div class="flex items-center bg-slate-200/70 p-1 rounded-lg">
+                        <button 
+                            type="button" 
+                            @click="movementJenis = 'masuk'"
+                            :class="movementJenis === 'masuk' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="px-2.5 py-1 text-xs font-semibold rounded-md transition">
+                            Masuk
+                        </button>
+                        <button 
+                            type="button" 
+                            @click="movementJenis = 'keluar'"
+                            :class="movementJenis === 'keluar' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="px-2.5 py-1 text-xs font-semibold rounded-md transition">
+                            Keluar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Form Mutasi -->
+                <form action="{{ route('movements.store') }}" method="POST" class="mt-4 space-y-4">
+                    @csrf
+                    <input type="hidden" name="item_id" :value="selectedItem.id">
+                    <input type="hidden" name="jenis" :value="movementJenis">
+
+                    <!-- Peringatan Validasi Fitur 4 Real-time di Alpine.js -->
+                    <div 
+                        x-show="movementJenis === 'keluar' && jumlahInput > selectedItem.stock" 
+                        class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-start gap-2">
+                        <svg class="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        <div>
+                            <strong>Transaksi Akan Ditolak:</strong> Jumlah keluar (<span x-text="jumlahInput"></span>) melebihi stok yang tersedia (<span x-text="selectedItem.stock"></span> <span x-text="selectedItem.satuan"></span>). Stok tidak boleh berubah!
+                        </div>
+                    </div>
+
+                    <!-- Tanggal Mutasi -->
+                    <div>
+                        <label for="tanggal" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                            Tanggal Mutasi <span class="text-rose-500">*</span>
+                        </label>
+                        <input 
+                            type="date" 
+                            name="tanggal" 
+                            id="tanggal"
+                            value="{{ date('Y-m-d') }}" 
+                            required
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                    </div>
+
+                    <!-- Jumlah Mutasi -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label for="jumlah" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                Jumlah (<span x-text="selectedItem.satuan"></span>) <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="text-[11px] text-slate-400">
+                                Simulasi Stok Akhir: 
+                                <strong :class="movementJenis === 'masuk' ? 'text-emerald-600' : ((selectedItem.stock - jumlahInput) < 0 ? 'text-rose-600' : 'text-slate-800')">
+                                    <span x-text="movementJenis === 'masuk' ? (Number(selectedItem.stock) + Number(jumlahInput || 0)) : (Number(selectedItem.stock) - Number(jumlahInput || 0))"></span>
+                                </strong>
+                            </span>
+                        </div>
+                        <input 
+                            type="number" 
+                            name="jumlah" 
+                            id="jumlah"
+                            x-model.number="jumlahInput"
+                            min="1" 
+                            required
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                        <p class="text-[11px] text-slate-400 mt-1">
+                            <span x-show="movementJenis === 'masuk'">Stok barang akan otomatis bertambah saat mutasi disimpan (Fitur 3).</span>
+                            <span x-show="movementJenis === 'keluar'">Stok barang akan berkurang. Tidak boleh melebihi stok tersedia (Fitur 4).</span>
+                        </p>
+                    </div>
+
+                    <!-- Keterangan Mutasi -->
+                    <div>
+                        <label for="keterangan" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                            Keterangan (Opsional)
+                        </label>
+                        <textarea 
+                            name="keterangan" 
+                            id="keterangan"
+                            rows="2"
+                            placeholder="Contoh: Pembelian supplier PT ABC / Penjualan ke Toko XYZ / Rusak"
+                            class="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"></textarea>
+                    </div>
+
+                    <!-- Tombol Aksi Modal -->
                     <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                         <button 
                             type="button" 
-                            @click="openCreateModal = false" 
+                            @click="openMovementModal = false" 
                             class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
                             Batal
                         </button>
                         <button 
                             type="submit" 
-                            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow transition focus:ring-4 focus:ring-indigo-100">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                            </svg>
-                            Simpan Barang
+                            :disabled="movementJenis === 'keluar' && (selectedItem.stock <= 0 || jumlahInput > selectedItem.stock)"
+                            :class="movementJenis === 'masuk' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed'"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm transition">
+                            <span x-text="movementJenis === 'masuk' ? 'Simpan Barang Masuk (+)' : 'Simpan Barang Keluar (-)'"></span>
                         </button>
                     </div>
                 </form>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 3: RIWAYAT MUTASI CEPAT (Fitur 5 - Alpine.js)             -->
+    <!-- ============================================================== -->
+    <div 
+        x-cloak 
+        x-show="openHistoryModal" 
+        class="fixed inset-0 z-50 overflow-y-auto"
+        aria-labelledby="modal-history-title" role="dialog" aria-modal="true">
+        
+        <!-- Backdrop -->
+        <div 
+            x-show="openHistoryModal"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="openHistoryModal = false"
+            class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div 
+                x-show="openHistoryModal"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="relative bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100">
+
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900" id="modal-history-title">Riwayat Mutasi Barang</h3>
+                            <p class="text-xs text-slate-500" x-show="historyItem">
+                                <span class="font-semibold text-slate-700" x-text="historyItem?.nama"></span>
+                                (<span class="font-mono" x-text="historyItem?.kode"></span>) &bull; Stok saat ini: 
+                                <strong class="text-indigo-600" x-text="historyItem?.stock + ' ' + historyItem?.satuan"></strong>
+                            </p>
+                        </div>
+                    </div>
+                    <button @click="openHistoryModal = false" class="text-slate-400 hover:text-slate-600 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div x-show="historyLoading" class="py-12 text-center text-slate-400">
+                    <svg class="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <p class="text-xs">Memuat riwayat mutasi...</p>
+                </div>
+
+                <!-- Data Mutasi -->
+                <div x-show="!historyLoading" class="mt-4">
+                    <template x-if="historyData.length > 0">
+                        <div class="overflow-x-auto max-h-80 overflow-y-auto rounded-xl border border-slate-100">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 sticky top-0 border-b border-slate-100 font-semibold uppercase text-slate-500">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Tanggal</th>
+                                        <th class="py-2.5 px-3 text-center">Jenis</th>
+                                        <th class="py-2.5 px-3 text-right">Jumlah</th>
+                                        <th class="py-2.5 px-3">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <template x-for="row in historyData" :key="row.id">
+                                        <tr class="hover:bg-slate-50/50">
+                                            <td class="py-2.5 px-3 font-medium text-slate-700 whitespace-nowrap" x-text="row.tanggal"></td>
+                                            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                                                <span 
+                                                    :class="row.jenis === 'masuk' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'"
+                                                    class="inline-flex px-2 py-0.5 rounded-full font-bold border"
+                                                    x-text="row.jenis === 'masuk' ? '+ Masuk' : '- Keluar'">
+                                                </span>
+                                            </td>
+                                            <td 
+                                                :class="row.jenis === 'masuk' ? 'text-emerald-600' : 'text-rose-600'"
+                                                class="py-2.5 px-3 text-right font-mono font-bold whitespace-nowrap">
+                                                <span x-text="(row.jenis === 'masuk' ? '+' : '-') + row.jumlah"></span>
+                                            </td>
+                                            <td class="py-2.5 px-3 text-slate-600" x-text="row.keterangan"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+
+                    <template x-if="historyData.length === 0">
+                        <div class="py-10 text-center text-slate-400">
+                            <p class="text-sm font-semibold text-slate-600">Belum Ada Riwayat Mutasi</p>
+                            <p class="text-xs text-slate-400 mt-0.5">Barang ini belum pernah mengalami mutasi masuk atau keluar.</p>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <a 
+                        :href="historyItem ? `/items/${historyItem.id}` : '#'" 
+                        class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold inline-flex items-center gap-1">
+                        Buka Halaman Detail Lengkap &rarr;
+                    </a>
+                    <button 
+                        type="button" 
+                        @click="openHistoryModal = false" 
+                        class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+                        Tutup
+                    </button>
+                </div>
 
             </div>
         </div>

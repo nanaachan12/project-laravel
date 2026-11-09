@@ -30,9 +30,6 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-2 text-sm">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-900/60 text-indigo-200">
-                        Laravel 12 + Alpine.js
-                    </span>
                 </div>
             </div>
         </div>
@@ -103,3 +100,4 @@
     @stack('scripts')
 </body>
 </html>
+

@@ -34,7 +34,7 @@ class ItemController extends Controller
     }
 
     /**
-     * Menyimpan barang baru dengan validasi.
+     * Menyimpan barang baru dengan validasi (Fitur 1).
      */
     public function store(Request $request)
     {
@@ -57,5 +57,51 @@ class ItemController extends Controller
         Item::create($validated);
 
         return redirect()->route('items.index')->with('success', "Barang '{$validated['nama']}' ({$validated['kode']}) berhasil ditambahkan!");
+    }
+
+    /**
+     * Halaman detail barang beserta riwayat mutasi (Fitur 5).
+     */
+    public function show(Item $item)
+    {
+        $item->load(['movements' => function ($q) {
+            $q->orderBy('tanggal', 'desc')->orderBy('id', 'desc');
+        }]);
+
+        // Hitung total masuk dan total keluar
+        $totalMasuk = $item->movements->where('jenis', 'masuk')->sum('jumlah');
+        $totalKeluar = $item->movements->where('jenis', 'keluar')->sum('jumlah');
+
+        return view('items.show', compact('item', 'totalMasuk', 'totalKeluar'));
+    }
+
+    /**
+     * Endpoint API JSON untuk mengambil riwayat mutasi barang (untuk modal Alpine.js di halaman daftar barang - Fitur 5).
+     */
+    public function movementsApi(Item $item)
+    {
+        $movements = $item->movements()->orderBy('tanggal', 'desc')->orderBy('id', 'desc')->get();
+
+        return response()->json([
+            'item' => [
+                'id' => $item->id,
+                'kode' => $item->kode,
+                'nama' => $item->nama,
+                'satuan' => $item->satuan,
+                'stock' => $item->stock,
+            ],
+            'movements' => $movements->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'jenis' => $m->jenis,
+                    'jumlah' => $m->jumlah,
+                    'keterangan' => $m->keterangan ?? '-',
+                    'tanggal' => $m->tanggal->format('d/m/Y'),
+                    'created_at' => $m->created_at->format('d/m/Y H:i'),
+                ];
+            }),
+            'total_masuk' => $movements->where('jenis', 'masuk')->sum('jumlah'),
+            'total_keluar' => $movements->where('jenis', 'keluar')->sum('jumlah'),
+        ]);
     }
 }

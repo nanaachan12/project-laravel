@@ -26,3 +26,4 @@ class Item extends Model
         return $this->hasMany(StockMovement::class, 'item_id')->orderBy('tanggal', 'desc')->orderBy('id', 'desc');
     }
 }
+
