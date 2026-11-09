@@ -7,7 +7,6 @@ Aplikasi manajemen inventaris stok gudang dan mutasi barang masuk/keluar berbasi
 ## 📋 Daftar Isi
 1. [Fitur Aplikasi](#-fitur-aplikasi)
    - [Fitur yang Sudah Selesai](#-fitur-yang-sudah-selesai)
-   - [Rencana Pengembangan / Fitur Belum Selesai](#-rencana-pengembangan--fitur-belum-selesai)
 2. [Prasyarat Sistem](#-prasyarat-sistem)
 3. [Panduan Menjalankan Project](#-panduan-menjalankan-project)
 4. [Menjalankan Pengujian Otomatis (Automated Tests)](#-menjalankan-pengujian-otomatis-automated-tests)
