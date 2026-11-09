@@ -54,17 +54,6 @@ Seluruh 5 fitur wajib yang dipersyaratkan telah selesai 100% dan diuji:
 
 ---
 
-### ⏳ Rencana Pengembangan / Fitur Belum Selesai
-Fitur-fitur tambahan yang potensial untuk pengembangan tahap berikutnya:
-- [ ] **Autentikasi & Hak Akses (Multi-User RBAC)**: Pemisahan peran antara *Admin Gudang*, *Operator/Staff Input*, dan *Supervisor*.
-- [ ] **Laporan & Ekspor Data**: Ekspor rekapitulasi stok dan mutasi barang ke format PDF dan Excel/CSV.
-- [ ] **Fitur Multi-Gudang / Lokasi Rak**: Pengelolaan lokasi gudang yang berbeda (Gudang Utama, Gudang Cabang) dan penomoran rak/bin.
-- [ ] **Sistem Peringatan Stok Minimum (Reorder Point Alert)**: Notifikasi email atau indikator otomatis ketika stok barang mencapai batas minimum pemesanan ulang.
-- [ ] **Upload Foto/Gambar Barang**: Kemampuan mengunggah foto fisik barang inventaris.
-- [ ] **Pencetakan Barcode / QR Code**: Generate label barcode/QR code untuk memudahkan *scanning* fisik barang.
-
----
-
 ## 💻 Prasyarat Sistem
 Pastikan perangkat Anda telah terinstal:
 - **PHP** >= 8.2 (disarankan PHP 8.3 dengan ekstensi `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`)
