@@ -76,3 +76,4 @@ class StockMovementController extends Controller
         }
     }
 }
+

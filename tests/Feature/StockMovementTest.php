@@ -194,3 +194,4 @@ class StockMovementTest extends TestCase
         $apiResponse->assertJsonFragment(['jumlah' => 3, 'jenis' => 'keluar']);
     }
 }
+
