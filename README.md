@@ -1,68 +1,180 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# StockGudang - Modul Manajemen Stok Gudang Sederhana
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi manajemen inventaris stok gudang dan mutasi barang masuk/keluar berbasis **Laravel 12** dan **Alpine.js** dengan tampilan modern menggunakan **Tailwind CSS**.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Daftar Isi
+1. [Fitur Aplikasi](#-fitur-aplikasi)
+   - [Fitur yang Sudah Selesai](#-fitur-yang-sudah-selesai)
+   - [Rencana Pengembangan / Fitur Belum Selesai](#-rencana-pengembangan--fitur-belum-selesai)
+2. [Prasyarat Sistem](#-prasyarat-sistem)
+3. [Panduan Menjalankan Project](#-panduan-menjalankan-project)
+4. [Menjalankan Pengujian Otomatis (Automated Tests)](#-menjalankan-pengujian-otomatis-automated-tests)
+5. [Struktur Database](#-struktur-database)
+6. [Catatan Penggunaan AI (AI Usage Note)](#-catatan-penggunaan-ai-ai-usage-note)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## ✨ Fitur Aplikasi
 
-## Learning Laravel
+### ✅ Fitur yang Sudah Selesai
+Seluruh 5 fitur wajib yang dipersyaratkan telah selesai 100% dan diuji:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1. **Halaman Daftar Barang & Form Tambah Barang (Fitur 1)**
+   - Menampilkan daftar seluruh barang inventaris dengan kartu statistik (*Total Jenis Barang*, *Total Unit Tersedia*, *Stok Kosong/Habis*).
+   - Form modal interaktif menggunakan Alpine.js untuk menambah barang baru.
+   - Preset cepat satuan barang (`pcs`, `box`, `rim`, `kg`, `unit`, `lusin`).
+   - Validasi ketat pada backend:
+     - `kode`: Wajib diisi (*required*) dan harus unik (*unique*).
+     - `nama`: Wajib diisi (*required*).
+     - `satuan`: Wajib diisi (*required*).
+     - `stock`: Opsional (default 0, nilai minimal 0).
+   - Filter pencarian barang berdasarkan kode, nama, atau satuan secara langsung.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+2. **Pencatatan Barang Masuk & Keluar dalam Modal Alpine.js (Fitur 2)**
+   - Tombol aksi cepat **`+ Masuk`** dan **`- Keluar`** pada setiap baris data barang.
+   - Form modal bertenaga **Alpine.js** yang terbuka instan tanpa me-refresh halaman (*seamless UX*).
+   - Pengisian otomatis identitas barang (kode, nama, stok saat ini).
+   - Tombol *switcher* instan di dalam modal untuk beralih antara jenis `Masuk` dan `Keluar`.
+   - Simulasi kalkulasi stok akhir secara *real-time* saat user mengetik jumlah barang.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+3. **Pembaruan Stok Otomatis Setiap Ada Mutasi (Fitur 3)**
+   - Eksekusi mutasi dibungkus di dalam **Database Transaction (`DB::transaction`)** dengan penguncian baris pesimistik (*pessimistic row locking / `lockForUpdate`*) untuk integritas data.
+   - Mutasi `masuk` otomatis menambah stok barang (`increment`).
+   - Mutasi `keluar` otomatis mengurangi stok barang (`decrement`).
 
-## Laravel Sponsors
+4. **Proteksi Anti Stok Minus / Overdraw (Fitur 4)**
+   - **Validasi Frontend (Alpine.js)**: Memunculkan alert peringatan merah seketika jika kuantitas barang keluar melebihi stok yang ada, serta menonaktifkan (*disable*) tombol submit.
+   - **Validasi Backend (Laravel)**: Jika kuantitas barang keluar melebihi stok tersedia, transaksi **langsung ditolak**, sistem melempar pesan kesalahan validasi, transaksi di-*rollback*, dan stok barang dijamin **tidak berubah sedikit pun**.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+5. **Riwayat Mutasi per Barang (Fitur 5)**
+   - **Modal Riwayat Cepat**: Tombol *Riwayat* pada tabel barang memanggil endpoint JSON API dan menampilkan tabel riwayat mutasi instan di dalam modal Alpine.js.
+   - **Halaman Detail Lengkap (`/items/{id}`)**: Menampilkan kartu profil barang, akumulasi total barang masuk, akumulasi total barang keluar, stok aktif, dan tabel kronologi lengkap seluruh mutasi barang.
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+### ⏳ Rencana Pengembangan / Fitur Belum Selesai
+Fitur-fitur tambahan yang potensial untuk pengembangan tahap berikutnya:
+- [ ] **Autentikasi & Hak Akses (Multi-User RBAC)**: Pemisahan peran antara *Admin Gudang*, *Operator/Staff Input*, dan *Supervisor*.
+- [ ] **Laporan & Ekspor Data**: Ekspor rekapitulasi stok dan mutasi barang ke format PDF dan Excel/CSV.
+- [ ] **Fitur Multi-Gudang / Lokasi Rak**: Pengelolaan lokasi gudang yang berbeda (Gudang Utama, Gudang Cabang) dan penomoran rak/bin.
+- [ ] **Sistem Peringatan Stok Minimum (Reorder Point Alert)**: Notifikasi email atau indikator otomatis ketika stok barang mencapai batas minimum pemesanan ulang.
+- [ ] **Upload Foto/Gambar Barang**: Kemampuan mengunggah foto fisik barang inventaris.
+- [ ] **Pencetakan Barcode / QR Code**: Generate label barcode/QR code untuk memudahkan *scanning* fisik barang.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 💻 Prasyarat Sistem
+Pastikan perangkat Anda telah terinstal:
+- **PHP** >= 8.2 (disarankan PHP 8.3 dengan ekstensi `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`)
+- **Composer** >= 2.x
+- **MySQL / MariaDB** (atau SQLite)
+- **Web Browser** modern dengan JavaScript aktif
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🚀 Panduan Menjalankan Project
 
-## Security Vulnerabilities
+### 1. Clone Repositori
+```bash
+git clone https://github.com/nanaachan12/project-laravel.git
+cd project-laravel
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 2. Instal Dependensi Composer
+```bash
+composer install
+```
 
-## License
+### 3. Konfigurasi Lingkungan (`.env`)
+Salin file `.env.example` menjadi `.env` (jika belum ada):
+```bash
+cp .env.example .env
+```
+Lalu buat Application Key:
+```bash
+php artisan key:generate
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Sesuaikan konfigurasi database pada file `.env`:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=project_laravel
+DB_USERNAME=root
+DB_PASSWORD=
+```
+> *Catatan: Pastikan database `project_laravel` sudah dibuat di MySQL/phpMyAdmin Anda.*
 
-# project-laravel
+### 4. Jalankan Migrasi Database
+Jalankan migrasi untuk membuat tabel `items`, `stock_movements`, dan tabel sistem lainnya:
+```bash
+php artisan migrate
+```
+
+### 5. Jalankan Server Development
+Jalankan server bawaan Laravel:
+```bash
+php artisan serve
+```
+Buka browser dan akses:
+👉 **[http://localhost:8000](http://localhost:8000)**
+
+---
+
+## 🧪 Menjalankan Pengujian Otomatis (Automated Tests)
+
+Project ini dilengkapi dengan pengujian menyeluruh (*Feature Test*) menggunakan PHPUnit/Pest:
+- `ItemManagementTest`: Menguji halaman indeks barang, pembuatan barang baru, validasi form kosong, dan validasi keunikan kode barang.
+- `StockMovementTest`: Menguji auto-update stok masuk/keluar, proteksi penolakan mutasi keluar melebihi stok (anti-minus), dan riwayat mutasi.
+
+Untuk menjalankan seluruh rangkaian pengujian:
+```bash
+php artisan test
+```
+
+---
+
+## 🗄️ Struktur Database
+
+### Tabel `items` (Barang)
+| Kolom | Tipe Data | Keterangan |
+|---|---|---|
+| `id` | BIGINT (PK) | Auto increment primary key |
+| `kode` | VARCHAR(50) | Kode unik barang (Wajib & Unique) |
+| `nama` | VARCHAR(255) | Nama barang (Wajib) |
+| `satuan` | VARCHAR(50) | Satuan unit barang (Wajib, misal: pcs, box, kg) |
+| `stock` | INT | Jumlah stok barang aktif (Default: 0) |
+| `created_at` / `updated_at` | TIMESTAMP | Waktu pencatatan data |
+
+### Tabel `stock_movements` (Mutasi Stok)
+| Kolom | Tipe Data | Keterangan |
+|---|---|---|
+| `id` | BIGINT (PK) | Auto increment primary key |
+| `item_id` | BIGINT (FK) | Relasi ke tabel `items.id` (*cascade on delete*) |
+| `jenis` | ENUM | Jenis mutasi: `'masuk'` atau `'keluar'` |
+| `jumlah` | INT | Kuantitas mutasi (Minimal 1) |
+| `keterangan` | TEXT | Catatan/keterangan mutasi (Opsional) |
+| `tanggal` | DATE | Tanggal transaksi mutasi |
+| `created_at` / `updated_at` | TIMESTAMP | Waktu pencatatan data |
+
+---
+
+## 🤖 Catatan Penggunaan AI (AI Usage Note)
+
+Dalam pengembangan project ini, **AI (Antigravity Coding Assistant bertenaga Gemini)** digunakan secara terarah sebagai mitra *pair programming* dengan rincian berikut:
+
+1. **Perancangan Skema & Migrasi Database**:
+   - Membantu menyusun file migrasi tabel `items` dan `stock_movements` sesuai spesifikasi field dan relasi foreign key yang aman.
+2. **Implementasi Business Logic & Integritas Transaksi**:
+   - Membantu menyusun controller `StockMovementController` dengan memanfaatkan **`DB::transaction()`** dan **`lockForUpdate()`** guna mencegah inkonsistensi stok dan *race condition*.
+   - Mengimplementasikan validasi backend yang menolak mutasi jika stok keluar melebihi stok yang ada tanpa mengubah stok barang.
+3. **Desain Antarmuka Modern & Reaktif**:
+   - Membantu penataan layout antarmuka menggunakan **Tailwind CSS CDN**.
+   - Menyusun komponen modal interaktif dan manipulasi DOM reaktif tanpa reload menggunakan **Alpine.js CDN**.
+4. **Penyusunan Pengujian Otomatis (*Test-Driven Quality*)**:
+   - Menyusun skenario pengujian unit & fitur lengkap di `tests/Feature/ItemManagementTest.php` dan `tests/Feature/StockMovementTest.php` untuk memastikan seluruh fitur wajib terverifikasi secara objektif.
+5. **Git Workflow & Dokumentasi**:
+   - Membantu penataan commit git bertahap per fitur dan penyusunan dokumentasi teknis pada file `README.md` ini.
